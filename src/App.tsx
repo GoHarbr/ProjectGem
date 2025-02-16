@@ -13,6 +13,11 @@ interface ModelOption {
 }
 
 const modelOptions: Record<Provider, ModelOption[]> = {
+  gemini: [
+    { value: 'gemini-2.0-flash', label: 'Gemini 2.0 Flash' },
+    { value: 'gemini-1.5-pro', label: 'Gemini 1.5 Pro' },
+    { value: 'gemini-pro', label: 'Gemini Pro' }
+  ],
   openai: [
     { value: 'gpt-3.5-turbo', label: 'GPT-3.5 Turbo' },
     { value: 'gpt-4', label: 'GPT-4' },
@@ -23,9 +28,6 @@ const modelOptions: Record<Provider, ModelOption[]> = {
   deepseek: [
     { value: 'deepseek-chat', label: 'DeepSeek Chat' },
     { value: 'deepseek-coder', label: 'DeepSeek Coder' }
-  ],
-  gemini: [
-    { value: 'gemini-pro', label: 'Gemini Pro' }
   ],
   claude: [
     { value: 'claude-3-opus-20240229', label: 'Claude 3 Opus' },
@@ -42,11 +44,13 @@ function App() {
   const [processedHeaders, setProcessedHeaders] = useState<string[]>([]);
   const [processedData, setProcessedData] = useState<CSVData>([]);
   const [isProcessing, setIsProcessing] = useState(false);
-  const [apiKey, setApiKey] = useState(''); //const [apiKey, setApiKey] = useState('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');
+  //const [apiKey, setApiKey] = useState('');
+  //const [apiKey, setApiKey] = useState(import.meta.env.VITE_GEMINI_API_KEY || '');
+  const [apiKey, setApiKey] = useState(import.meta.env.VITE_OPENAI_API_KEY || '');
   const [error, setError] = useState('');
   const [processedResult, setProcessedResult] = useState<string | null>(null);
   const [selectedProvider, setSelectedProvider] = useState<Provider>('openai');
-  const [selectedModel, setSelectedModel] = useState<string>(modelOptions.openai[0].value);
+  const [selectedModel, setSelectedModel] = useState<string>(modelOptions.openai[4].value);
 
   const processCSV = (csvText: string): [string[], string[][]] => {
     const lines = csvText.split('\n').map(line => 
@@ -114,12 +118,12 @@ function App() {
     const csv1 = formatData(headers1, data1);
     const csv2 = formatData(headers2, data2);
 
-    return `I want to compare these two spreadsheets side-by-side. 
-  First collapse each spreadsheet into one column.
-  Double-check that each spreadsheet is one column only.
+    return `I want to compare these two CSV's side-by-side. 
+  Double-check that each CSV is one column only.
   Now start matching rows.
-  If a row exists in one spreadsheet but not the other, use an empty cell to keep alignment. 
-  Double-check each row carefully. 
+  The data in the rows should match almost precisely.
+  If data in a row exists in one spreadsheet but not the other, use an empty cell to keep alignment. 
+  Double-check each row carefully.
   Show the result as a **well-formed CSV** with exactly two columns. 
   Do not provide any commentary.
 
@@ -202,13 +206,10 @@ function App() {
 
       if (result) {
         result = result.replace(/^```csv\s*|\s*```$/g, '');
-        console.log("RESULT", result);
         setProcessedResult(result);
         const [newHeaders, newData] = processCSV(result);
         setProcessedHeaders(newHeaders);
         setProcessedData(newData);
-      } else {
-        console.log("NO RESULT", result);
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'An error occurred while processing the files');
@@ -238,58 +239,65 @@ function App() {
   return (
     <div className="min-h-screen bg-gray-100 p-8">
       <div className="max-w-7xl mx-auto">
-        <h1 className="text-3xl font-bold text-gray-800 mb-8">CSV Comparison Tool</h1>
+        <img
+          src="https://harbr.com/wp-content/uploads/2021/05/Harbr_black-on-light_small.png"
+          width="100"
+        />
+        <br />
+        <h1 className="text-3xl font-bold text-gray-800 mb-8">Financials Comparison Tool</h1>
 
-        <div className="mb-8 space-y-4">
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="block mb-2 text-sm font-medium text-gray-700">
-                AI Provider
-              </label>
-              <select
-                value={selectedProvider}
-                onChange={handleProviderChange}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                disabled={isProcessing}
-              >
-                <option value="openai">OpenAI</option>
-                <option value="deepseek">DeepSeek</option>
-                <option value="gemini">Google Gemini</option>
-                <option value="claude">Anthropic Claude</option>
-              </select>
+        <div class="hidden">
+          <div className="mb-8 space-y-4">
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block mb-2 text-sm font-medium text-gray-700">
+                  AI Provider
+                </label>
+                <select
+                  value={selectedProvider}
+                  onChange={handleProviderChange}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  disabled={isProcessing}
+                >
+                  <option value="openai">OpenAI</option>
+                  <option value="deepseek">DeepSeek</option>
+                  <option value="gemini">Google Gemini</option>
+                  <option value="claude">Anthropic Claude</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block mb-2 text-sm font-medium text-gray-700">
+                  Model
+                </label>
+                <select
+                  value={selectedModel}
+                  onChange={(e) => setSelectedModel(e.target.value)}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  disabled={isProcessing}
+                >
+                  {modelOptions[selectedProvider].map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
             </div>
 
             <div>
               <label className="block mb-2 text-sm font-medium text-gray-700">
-                Model
+                {selectedProvider.toUpperCase()} API Key
               </label>
-              <select
-                value={selectedModel}
-                onChange={(e) => setSelectedModel(e.target.value)}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              <input
+                type="password"
+                className="w-full max-w-md px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                placeholder={`Enter your ${selectedProvider.toUpperCase()} API key`}
+                value={apiKey}
+                onChange={(e) => setApiKey(e.target.value)}
                 disabled={isProcessing}
-              >
-                {modelOptions[selectedProvider].map((option) => (
-                  <option key={option.value} value={option.value}>
-                    {option.label}
-                  </option>
-                ))}
-              </select>
+              />
             </div>
-          </div>
-
-          <div>
-            <label className="block mb-2 text-sm font-medium text-gray-700">
-              {selectedProvider.toUpperCase()} API Key
-            </label>
-            <input
-              type="password"
-              className="w-full max-w-md px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-              placeholder={`Enter your ${selectedProvider.toUpperCase()} API key`}
-              value={apiKey}
-              onChange={(e) => setApiKey(e.target.value)}
-              disabled={isProcessing}
-            />
           </div>
         </div>
 
@@ -359,7 +367,8 @@ function App() {
                 Processing...
               </span>
             ) : (
-              `Process with ${selectedModel}`
+              //`Process with ${selectedModel}`
+              `Process Financials`
             )}
           </button>
 
