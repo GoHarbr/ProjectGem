@@ -1,20 +1,52 @@
 import React, { useState, useCallback } from 'react';
 import { Upload, Loader2, Download } from 'lucide-react';
 import OpenAI from 'openai';
+import { GoogleGenerativeAI } from '@google/generative-ai';
+import Anthropic from '@anthropic-ai/sdk';
 
 type CSVData = string[][];
+type Provider = 'openai' | 'deepseek' | 'gemini' | 'claude';
+
+interface ModelOption {
+  value: string;
+  label: string;
+}
+
+const modelOptions: Record<Provider, ModelOption[]> = {
+  openai: [
+    { value: 'gpt-3.5-turbo', label: 'GPT-3.5 Turbo' },
+    { value: 'gpt-4', label: 'GPT-4' },
+    { value: 'gpt-4-turbo-preview', label: 'GPT-4 Turbo' },
+    { value: 'o1-mini', label: 'o1-mini' },
+    { value: 'o3-mini', label: 'o3-mini' }
+  ],
+  deepseek: [
+    { value: 'deepseek-chat', label: 'DeepSeek Chat' },
+    { value: 'deepseek-coder', label: 'DeepSeek Coder' }
+  ],
+  gemini: [
+    { value: 'gemini-pro', label: 'Gemini Pro' }
+  ],
+  claude: [
+    { value: 'claude-3-opus-20240229', label: 'Claude 3 Opus' },
+    { value: 'claude-3-sonnet-20240229', label: 'Claude 3 Sonnet' },
+    { value: 'claude-2.1', label: 'Claude 2.1' }
+  ]
+};
 
 function App() {
   const [file1Data, setFile1Data] = useState<CSVData>([]);
   const [file2Data, setFile2Data] = useState<CSVData>([]);
   const [headers1, setHeaders1] = useState<string[]>([]);
   const [headers2, setHeaders2] = useState<string[]>([]);
-  const [isProcessing, setIsProcessing] = useState(false);
-  const [apiKey, setApiKey] = useState('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');
-  const [error, setError] = useState('');
-  const [processedResult, setProcessedResult] = useState<string | null>(null);
   const [processedHeaders, setProcessedHeaders] = useState<string[]>([]);
   const [processedData, setProcessedData] = useState<CSVData>([]);
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [apiKey, setApiKey] = useState(''); //const [apiKey, setApiKey] = useState('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');
+  const [error, setError] = useState('');
+  const [processedResult, setProcessedResult] = useState<string | null>(null);
+  const [selectedProvider, setSelectedProvider] = useState<Provider>('openai');
+  const [selectedModel, setSelectedModel] = useState<string>(modelOptions.openai[0].value);
 
   const processCSV = (csvText: string): [string[], string[][]] => {
     const lines = csvText.split('\n').map(line => 
@@ -68,9 +100,39 @@ function App() {
     reader.readAsText(file);
   }, []);
 
-  const processWithOpenAI = async () => {
+  const handleProviderChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const newProvider = e.target.value as Provider;
+    setSelectedProvider(newProvider);
+    setSelectedModel(modelOptions[newProvider][0].value);
+  };
+
+  const getPrompt = (headers1: string[], data1: string[][], headers2: string[], data2: string[][]) => {
+    const formatData = (headers: string[], data: string[][]) => {
+      return [headers.join(', '), ...data.map(row => row.join(', '))].join('\n');
+    };
+
+    const csv1 = formatData(headers1, data1);
+    const csv2 = formatData(headers2, data2);
+
+    return `I want to compare these two spreadsheets side-by-side. 
+  First collapse each spreadsheet into one column.
+  Double-check that each spreadsheet is one column only.
+  Now start matching rows.
+  If a row exists in one spreadsheet but not the other, use an empty cell to keep alignment. 
+  Double-check each row carefully. 
+  Show the result as a **well-formed CSV** with exactly two columns. 
+  Do not provide any commentary.
+
+  First spreadsheet:
+  ${csv1}
+
+  Second spreadsheet:
+  ${csv2}`;
+  };
+
+  const processWithAI = async () => {
     if (!apiKey) {
-      setError('Please enter your OpenAI API key first');
+      setError(`Please enter your ${selectedProvider.toUpperCase()} API key first`);
       return;
     }
 
@@ -84,51 +146,69 @@ function App() {
       setError('');
       setProcessedResult(null);
 
-      const openai = new OpenAI({
-        apiKey: apiKey,
-        dangerouslyAllowBrowser: true
-      });
+      const prompt = getPrompt(headers1, file1Data, headers2, file2Data);
+      let result: string;
 
-      // Convert data to CSV format
-      const csv1 = [headers1, ...file1Data]
-        .map(row => row.join(','))
-        .join('\n');
-      
-      const csv2 = [headers2, ...file2Data]
-        .map(row => row.join(','))
-        .join('\n');
+      switch (selectedProvider) {
+        case 'openai': {
+          const openai = new OpenAI({ 
+            apiKey: apiKey,
+            dangerouslyAllowBrowser: true
+          });
+          const response = await openai.chat.completions.create({
+            model: selectedModel,
+            messages: [{ role: "user", content: prompt }],
+          });
+          result = response.choices[0].message.content || '';
+          break;
+        }
+        case 'deepseek': {
+          const response = await fetch('https://api.deepseek.com/v1/chat/completions', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${apiKey}`,
+            },
+            body: JSON.stringify({
+              model: selectedModel,
+              messages: [{ role: "user", content: prompt }]
+            })
+          });
+          if (!response.ok) throw new Error(`DeepSeek API error: ${response.statusText}`);
+          const data = await response.json();
+          result = data.choices[0].message.content;
+          break;
+        }
+        case 'gemini': {
+          const genAI = new GoogleGenerativeAI(apiKey);
+          const model = genAI.getGenerativeModel({ model: selectedModel });
+          const response = await model.generateContent(prompt);
+          result = response.response.text();
+          break;
+        }
+        case 'claude': {
+          const anthropic = new Anthropic({ apiKey });
+          const response = await anthropic.messages.create({
+            model: selectedModel,
+            max_tokens: 4096,
+            messages: [{ role: "user", content: prompt }],
+          });
+          result = response.content[0].text;
+          break;
+        }
+        default:
+          throw new Error('Invalid provider selected');
+      }
 
-      const response = await openai.chat.completions.create({
-        //model: "o1-mini",
-        model: "o3-mini",
-        messages: [
-          {
-            role: "user",
-            content: `I want to compare these two spreadsheets side-by-side. 
-First collapse each spreadsheet into one column.
-Double-check that each spreadsheet is one column only.
-Now start matching rows.
-If a row exists in one spreadsheet but not the other, use an empty cell to keep alignment. 
-Double-check each row carefully. 
-Show the result as a CSV. 
-Do not provide any commentary.
-
-First spreadsheet:
-${csv1}
-
-Second spreadsheet:
-${csv2}`
-          }
-        ]
-      });
-
-      let result = response.choices[0].message.content;
       if (result) {
         result = result.replace(/^```csv\s*|\s*```$/g, '');
+        console.log("RESULT", result);
         setProcessedResult(result);
         const [newHeaders, newData] = processCSV(result);
         setProcessedHeaders(newHeaders);
         setProcessedData(newData);
+      } else {
+        console.log("NO RESULT", result);
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'An error occurred while processing the files');
@@ -159,6 +239,59 @@ ${csv2}`
     <div className="min-h-screen bg-gray-100 p-8">
       <div className="max-w-7xl mx-auto">
         <h1 className="text-3xl font-bold text-gray-800 mb-8">CSV Comparison Tool</h1>
+
+        <div className="mb-8 space-y-4">
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block mb-2 text-sm font-medium text-gray-700">
+                AI Provider
+              </label>
+              <select
+                value={selectedProvider}
+                onChange={handleProviderChange}
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                disabled={isProcessing}
+              >
+                <option value="openai">OpenAI</option>
+                <option value="deepseek">DeepSeek</option>
+                <option value="gemini">Google Gemini</option>
+                <option value="claude">Anthropic Claude</option>
+              </select>
+            </div>
+
+            <div>
+              <label className="block mb-2 text-sm font-medium text-gray-700">
+                Model
+              </label>
+              <select
+                value={selectedModel}
+                onChange={(e) => setSelectedModel(e.target.value)}
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                disabled={isProcessing}
+              >
+                {modelOptions[selectedProvider].map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+
+          <div>
+            <label className="block mb-2 text-sm font-medium text-gray-700">
+              {selectedProvider.toUpperCase()} API Key
+            </label>
+            <input
+              type="password"
+              className="w-full max-w-md px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              placeholder={`Enter your ${selectedProvider.toUpperCase()} API key`}
+              value={apiKey}
+              onChange={(e) => setApiKey(e.target.value)}
+              disabled={isProcessing}
+            />
+          </div>
+        </div>
 
         {error && (
           <div className="mb-8 p-4 bg-red-50 text-red-700 rounded-lg">
@@ -216,7 +349,7 @@ ${csv2}`
 
         <div className="mb-8 flex gap-4">
           <button
-            onClick={processWithOpenAI}
+            onClick={processWithAI}
             disabled={isProcessing || !file1Data.length || !file2Data.length || !apiKey}
             className="px-6 py-3 bg-blue-600 text-white rounded-lg font-semibold hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed"
           >
@@ -226,7 +359,7 @@ ${csv2}`
                 Processing...
               </span>
             ) : (
-              'Process formatter'
+              `Process with ${selectedModel}`
             )}
           </button>
 
