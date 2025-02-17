@@ -22,8 +22,10 @@ const modelOptions: Record<Provider, ModelOption[]> = {
     { value: 'gpt-3.5-turbo', label: 'GPT-3.5 Turbo' },
     { value: 'gpt-4', label: 'GPT-4' },
     { value: 'gpt-4-turbo-preview', label: 'GPT-4 Turbo' },
-    { value: 'o1-mini', label: 'o1-mini' },
-    { value: 'o3-mini', label: 'o3-mini' }
+    { value: 'gpt-4o', label: 'GPT-4o' },
+    { value: 'gpt-4o-mini', label: 'GPT-4o Mini' },
+    { value: 'o1-mini', label: 'o1 Mini' },
+    { value: 'o3-mini', label: 'o3 Mini' }
   ],
   deepseek: [
     { value: 'deepseek-chat', label: 'DeepSeek Chat' },
@@ -45,12 +47,12 @@ function App() {
   const [processedData, setProcessedData] = useState<CSVData>([]);
   const [isProcessing, setIsProcessing] = useState(false);
   //const [apiKey, setApiKey] = useState('');
-  //const [apiKey, setApiKey] = useState(import.meta.env.VITE_GEMINI_API_KEY || '');
-  const [apiKey, setApiKey] = useState(import.meta.env.VITE_OPENAI_API_KEY || '');
+  const [apiKey, setApiKey] = useState(import.meta.env.VITE_GEMINI_API_KEY || '');
+  //const [apiKey, setApiKey] = useState(import.meta.env.VITE_OPENAI_API_KEY || '');
   const [error, setError] = useState('');
   const [processedResult, setProcessedResult] = useState<string | null>(null);
-  const [selectedProvider, setSelectedProvider] = useState<Provider>('openai');
-  const [selectedModel, setSelectedModel] = useState<string>(modelOptions.openai[4].value);
+  const [selectedProvider, setSelectedProvider] = useState<Provider>('gemini');
+  const [selectedModel, setSelectedModel] = useState<string>(modelOptions.gemini[1].value);
 
   const processCSV = (csvText: string): [string[], string[][]] => {
     const lines = csvText.split('\n').map(line => 
@@ -120,9 +122,9 @@ function App() {
 
     return `I want to compare these two spreadsheets side-by-side. 
   First collapse each spreadsheet into one column.
-  Double-check that each spreadsheet is one column only.
-  Now start matching rows.
-  If a row exists in one spreadsheet but not the other, use an empty cell to keep alignment. 
+  Make an index from the row and cell data from First spreadsheet.
+  Use the index to match rows and cells in Second spreadsheet.
+  If there is no matching pair, use an empty cell.
   Double-check each row carefully. 
   Show the result as a **well-formed CSV** with exactly two columns. 
   Do not provide any commentary.
