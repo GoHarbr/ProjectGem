@@ -118,12 +118,12 @@ function App() {
     const csv1 = formatData(headers1, data1);
     const csv2 = formatData(headers2, data2);
 
-    return `I want to compare these two CSV's side-by-side. 
-  Double-check that each CSV is one column only.
+    return `I want to compare these two spreadsheets side-by-side. 
+  First collapse each spreadsheet into one column.
+  Double-check that each spreadsheet is one column only.
   Now start matching rows.
-  The data in the rows should match almost precisely.
-  If data in a row exists in one spreadsheet but not the other, use an empty cell to keep alignment. 
-  Double-check each row carefully.
+  If a row exists in one spreadsheet but not the other, use an empty cell to keep alignment. 
+  Double-check each row carefully. 
   Show the result as a **well-formed CSV** with exactly two columns. 
   Do not provide any commentary.
 
