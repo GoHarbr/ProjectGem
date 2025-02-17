@@ -46,8 +46,8 @@ function App() {
   const [processedHeaders, setProcessedHeaders] = useState<string[]>([]);
   const [processedData, setProcessedData] = useState<CSVData>([]);
   const [isProcessing, setIsProcessing] = useState(false);
-  //const [apiKey, setApiKey] = useState('');
-  const [apiKey, setApiKey] = useState(import.meta.env.VITE_GEMINI_API_KEY || '');
+  const [apiKey, setApiKey] = useState('');
+  //const [apiKey, setApiKey] = useState(import.meta.env.VITE_GEMINI_API_KEY || '');
   //const [apiKey, setApiKey] = useState(import.meta.env.VITE_OPENAI_API_KEY || '');
   const [error, setError] = useState('');
   const [processedResult, setProcessedResult] = useState<string | null>(null);
@@ -248,7 +248,7 @@ function App() {
         <br />
         <h1 className="text-3xl font-bold text-gray-800 mb-8">Financials Comparison Tool</h1>
 
-        <div class="hidden">
+        <div class="">
           <div className="mb-8 space-y-4">
             <div className="grid grid-cols-2 gap-4">
               <div>
