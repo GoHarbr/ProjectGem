@@ -5,7 +5,7 @@ import { GoogleGenerativeAI } from '@google/generative-ai';
 import Anthropic from '@anthropic-ai/sdk';
 
 type CSVData = string[][];
-type Provider = 'openai' | 'deepseek' | 'gemini' | 'claude';
+type Provider = 'openai' | 'deepseek' | 'xai' | 'gemini' | 'claude';
 
 interface ModelOption {
   value: string;
@@ -30,6 +30,9 @@ const modelOptions: Record<Provider, ModelOption[]> = {
   deepseek: [
     { value: 'deepseek-chat', label: 'DeepSeek Chat' },
     { value: 'deepseek-coder', label: 'DeepSeek Coder' }
+  ],
+  xai: [
+    { value: 'grok-2', label: 'Grok 2' }
   ],
   claude: [
     { value: 'claude-3-opus-20240229', label: 'Claude 3 Opus' },
@@ -125,6 +128,7 @@ function App() {
   Make an index from the row and cell data from First spreadsheet.
   Use the index to match rows and cells in Second spreadsheet.
   If there is no matching pair, use an empty cell.
+  There may be data in Second spreadsheet but not in First, in that case add a blank cell to First spreadsheet.
   Double-check each row carefully. 
   Show the result as a **well-formed CSV** with exactly two columns. 
   Do not provide any commentary.
@@ -181,6 +185,25 @@ function App() {
             })
           });
           if (!response.ok) throw new Error(`DeepSeek API error: ${response.statusText}`);
+          const data = await response.json();
+          result = data.choices[0].message.content;
+          break;
+        }
+        case 'xai': {
+          const response = await fetch('https://api.x.ai/v1/chat/completions', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${apiKey}`,
+            },
+            body: JSON.stringify({
+              model: selectedModel,
+              stream: false,
+              temperature: 0,
+              messages: [{ role: "user", content: prompt }]
+            })
+          });
+          if (!response.ok) throw new Error(`xAI API error: ${response.statusText}`);
           const data = await response.json();
           result = data.choices[0].message.content;
           break;
@@ -263,6 +286,7 @@ function App() {
                 >
                   <option value="openai">OpenAI</option>
                   <option value="deepseek">DeepSeek</option>
+                  <option value="xai">xAI</option>
                   <option value="gemini">Google Gemini</option>
                   <option value="claude">Anthropic Claude</option>
                 </select>
